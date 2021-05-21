@@ -1,0 +1,28 @@
+{
+  "name": "shop",
+  "version": "1.0.0",
+  "description": "shopServer",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shangxue314/shop.git"
+  },
+  "author": "xue",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/shangxue314/shop/issues"
+  },
+  "homepage": "https://github.com/shangxue314/shop#readme",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "mongoose": "^5.12.6"
+  },
+  "devDependencies": {
+    "crypto-js": "^4.0.0",
+    "multer": "^1.4.2"
+  }
+}
