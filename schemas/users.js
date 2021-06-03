@@ -18,6 +18,15 @@ let cartlist = new mongoose.Schema({
     id : String,
     num: {type: Number, default: 0}
 })
+// 订单子文档
+let order = new mongoose.Schema({
+    pid: String,
+    num: Number,
+    totalPrice: String,
+    name: String,
+    tel: String,
+    address: String
+})
 module.exports = new mongoose.Schema({
     username: String,
     password: String,
@@ -31,6 +40,6 @@ module.exports = new mongoose.Schema({
     score: {type: Number, default: 0},
     balance: {type: Number, default: 0},
     coupons: {type: Array, default: []},
-    order: {type: Array, default: []},
+    order: [order],
     address: [address]
 })

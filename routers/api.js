@@ -39,7 +39,6 @@ router.get('/goods/:_id',(req,res)=>{
 
 // 添加商品
 router.post('/goods',(req,res)=>{
-    console.log(req.body);
     Goods.findOne({
         name: req.body.name
     }).then(goodsInfo=>{
@@ -140,9 +139,8 @@ router.post('/cart',async (req,res)=>{
         })
     }else{
         let {cartlist} = await User.findOne({
+            username,
             'cartlist.id':  goodsid
-        },{
-            cartlist: 1
         })
         let num = 0
         cartlist.forEach(item=>{
@@ -195,18 +193,50 @@ router.put('/cart',async (req,res)=>{
 
 // 获取购物车商品列表详情
 router.get('/cart',async (req,res)=>{
-    let userInfo = await User.findOne({
-        'cartlist.id':  {$in:JSON.parse(req.query.cartlist)}
-    })
-    Goods.find({
-        _id: {$in:JSON.parse(req.query.cartlist)}
-    }).then(cartInfo=>{
-        cartInfo = cartInfo.map((item,index)=>Object.assign(item._doc,userInfo.cartlist[index]))
-        responseData.code = 0
-        responseData.message = '查询购物车信息'
-        responseData.data = cartInfo
-        res.json(responseData)
-    })
+    let {username,cartlist} = req.query
+    if(cartlist.startsWith('[')){
+        // 购物车获取
+        let userInfo = await User.findOne({
+            'cartlist.id':  {$in:JSON.parse(cartlist)}
+        })
+        Goods.find({
+            _id: {$in:JSON.parse(cartlist)}
+        }).then(cartInfo=>{
+            // 合并购物车商品详细数据
+            let mergeInfo = []
+            cartInfo.forEach(item=>{
+                userInfo.cartlist.forEach(value=>{
+                    if(item._id==value.id){
+                        mergeInfo.push({
+                            ...item._doc,
+                            num: value.num
+                        })
+                    }
+                })
+            })
+            responseData.code = 0
+            responseData.message = '查询购物车信息'
+            responseData.data = mergeInfo
+            res.json(responseData)
+        })
+    }else{
+        // 单个商品购买获取
+        Goods.find({
+            _id: cartlist
+        }).then(cartInfo=>{
+            let resInfo = []
+            cartInfo.forEach(item=>{
+                resInfo.push({
+                    ...item._doc,
+                    num: 1
+                })
+            })
+            responseData.code = 0
+            responseData.message = '查询商品信息'
+            responseData.data = resInfo
+            res.json(responseData)
+        })
+    }
 })
 
 // 删除购物车商品
@@ -474,14 +504,97 @@ router.get('/sort',async (req,res)=>{
     let sortMap = Object.assign({},rankMap[rank],salesMap[sales])
     let goodsInfo = await Goods.find(query).sort(sortMap)
     if(goodsInfo.length>0){
+        responseData.code = 0
         responseData.message = '查询到数据'
         responseData.data = goodsInfo
     }else{
+        responseData.code = 1
         responseData.message = '暂无数据'
         responseData.data = []
     }
-    responseData.code = 0
     res.json(responseData)
+})
+
+// 提交订单
+router.post('/order',async (req,res)=>{
+    let {username,totalPrice,cartlistid,num,name,tel,address} = req.body
+    let userInfo = await User.findOne({username})
+    userInfo.order.push({
+        pid: cartlistid,
+        totalPrice,
+        num,
+        name,
+        tel,
+        address
+    })
+    userInfo.balance = userInfo.balance - totalPrice
+    userInfo.save((err,result)=>{
+        if(err){
+            responseData.code = 2
+            responseData.message = '提交失败'
+        }else{
+            responseData.code = 0
+            responseData.message = '提交成功'
+            responseData.data = result.balance
+        }
+        res.json(responseData)
+    })
+})
+
+// 订单列表
+router.get('/order',async (req,res)=>{
+    let userInfo = await User.findOne({username:req.query.username})
+    let order = userInfo.order
+    // 通过订单列表中商品id获取商品详情
+    let getGoodsInfo = async ()=>{
+        let arr = []
+        // 循环订单列表异步获取商品表中商品名称和图片地址
+        let allPromise = order.map(item=>{
+            return new Promise(async (resolve,reject)=>{
+                let pid = item.pid.startsWith('[') ? JSON.parse(item.pid) : JSON.parse(`["${item.pid}"]`)
+                let goodsInfo = await Goods.find({
+                    _id: {$in:pid}
+                })
+                let pname = []
+                let pic = []
+                goodsInfo.forEach(value=>{
+                    pname.push(value.name)
+                    pic.push(value.pic)
+                })
+                let data = Object.assign({},item._doc,{pname,pic})
+                arr.push(data)
+                resolve(arr)
+            })
+        })
+        await Promise.all(allPromise)
+        return arr
+    }
+    let goodsInfo = await getGoodsInfo()
+    if(goodsInfo.length>0){
+        responseData.code = 0
+        responseData.message = '查询成功'
+        responseData.data = goodsInfo
+    }else{
+        responseData.code = 2
+        responseData.message = '查询失败'
+    }
+    res.json(responseData)
+})
+
+// 送钱了
+router.post('/gift',async (req,res)=>{
+    let giftRes = await User.updateOne({
+        username: req.body.username,
+    },{
+        '$set': {
+            balance: 50000
+        }
+    })
+    if(giftRes.ok){
+        responseData.code = 0
+        responseData.message = '赠送成功'
+        res.json(responseData)
+    }
 })
 
 module.exports = router
