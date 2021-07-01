@@ -8,5 +8,5 @@ module.exports = new mongoose.Schema({
     bbs: Number,
     price: Number,
     pic: String,
-    info: {type: Object, default: {}},
+    info: {type: Object, default: {}}
 })
